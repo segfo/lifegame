@@ -19,6 +19,10 @@ impl FNV1 {
     }
 }
 
+/**
+ * リングバッファの実装です。
+ * このプログラムでは主に、盤面状況（ハッシュ値）の記録をします。
+ */
 struct RingBuffer<T> {
     buf: Vec<T>,
     front: usize,
@@ -40,23 +44,24 @@ where
         }
     }
     fn enqueue(&mut self, data: T) {
-        self.front %= self.n;
-        self.buf[self.front] = data;
         if self.buf_size < self.n {
             self.buf_size += 1;
         } else {
+            self.rear %= self.n;
             self.rear += 1;
         }
+        self.front %= self.n;
+        self.buf[self.front] = data;
         self.front += 1;
     }
     fn dequeue(&mut self) -> Option<T> {
-        self.rear %= self.n;
-        let data = self.buf[self.front];
         if self.buf_size > 0 {
             self.buf_size -= 1;
         } else {
             return None;
         }
+        self.rear %= self.n;
+        let data = self.buf[self.rear];
         self.rear += 1;
         Some(data)
     }
@@ -65,6 +70,10 @@ where
     }
 }
 
+/**
+ * 盤面を表す構造体
+ * 盤面全体の状態を管理します。
+ */
 struct Board {
     array: Vec<Vec<Cell>>,
     old_hash: RingBuffer<usize>,
