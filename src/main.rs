@@ -4,6 +4,10 @@ const OFFSET_BASIS32: usize = 2166136261;
 const OFFSET_BASIS64: usize = 14695981039346656037;
 const FNV_PRIME32: usize = 16777619;
 const FNV_PRIME_64: usize = 1099511628211;
+/**
+ * 盤面をハッシュ化するための実装です。
+ * FNV1アルゴリズムで実装されています。
+ */
 struct FNV1;
 impl FNV1 {
     fn hash64(cells: &Vec<Vec<Cell>>) -> usize {
@@ -25,53 +29,69 @@ impl FNV1 {
  */
 struct RingBuffer<T> {
     buf: Vec<T>,
-    front: usize,
-    rear: usize,
-    buf_size: usize,
-    n: usize,
+    write: usize,    // 次の書き込み位置
+    read: usize,     // 次の読み取り位置
+    buf_size: usize, // 現在のリングバッファに書き込まれている有効なデータ数
+    // 上書きされたデータは無効なものとして扱う=buf_capacityを超えることはない
+    buf_capacity: usize, // 実際のリングバッファのキャパ
 }
 impl<T> RingBuffer<T>
 where
     T: Clone + PartialEq + Copy,
 {
-    fn new(n: usize, init_data: T) -> Self {
+    /**
+     * リングバッファを初期化します。
+     */
+    fn new(buffer_capacity: usize, init_data: T) -> Self {
         RingBuffer {
-            buf: vec![init_data; n],
-            front: 0,
-            rear: 0,
+            buf: vec![init_data; buffer_capacity],
+            write: 0,
+            read: 0,
             buf_size: 0,
-            n: n,
+            buf_capacity: buffer_capacity,
         }
     }
+    /**
+     * リングバッファへデータを格納します。
+     * リングバッファの容量を超える場合は、古いデータから順に削除されます。
+     */
     fn enqueue(&mut self, data: T) {
-        if self.buf_size < self.n {
+        if self.buf_size < self.buf_capacity {
             self.buf_size += 1;
         } else {
-            self.rear %= self.n;
-            self.rear += 1;
+            self.read %= self.buf_capacity;
+            self.read += 1;
         }
-        self.front %= self.n;
-        self.buf[self.front] = data;
-        self.front += 1;
+        self.write %= self.buf_capacity;
+        self.buf[self.write] = data;
+        self.write += 1;
     }
+    /**
+     * リングバッファからデータを取り出します。
+     * 取り出せない場合にはNoneが返ります。
+     */
     fn dequeue(&mut self) -> Option<T> {
         if self.buf_size > 0 {
             self.buf_size -= 1;
         } else {
             return None;
         }
-        self.rear %= self.n;
-        let data = self.buf[self.rear];
-        self.rear += 1;
+        self.read %= self.buf_capacity;
+        let data = self.buf[self.read];
+        self.read += 1;
         Some(data)
     }
+    /**
+     * リングバッファに `data` が存在するか確認します。
+     * 存在した場合には、trueが返却されます。
+     */
     fn is_in_data(&self, data: T) -> bool {
         self.buf.contains(&data)
     }
 }
 
 /**
- * 盤面を表す構造体
+ * 盤面を表す実装です。
  * 盤面全体の状態を管理します。
  */
 struct Board {
@@ -138,6 +158,9 @@ impl Board {
         self.old_hash.is_in_data(self.to_hash())
     }
 }
+/**
+ * Cellの状態を管理します。
+ */
 #[derive(Debug, Clone, PartialEq)]
 enum CellState {
     Dead,
