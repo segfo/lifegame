@@ -4,7 +4,7 @@ use toolbox::{fnv1::FNV1, fnv1::FNV1_64, ring_buffer::RingBuffer};
 /// 盤面全体の状態を管理します。
 struct Board {
     array: Vec<Vec<Cell>>,
-    old_hash: RingBuffer<u64>,
+    old_hash: RingBuffer<Option<u64>>,
     width: usize,
     height: usize,
 }
@@ -12,7 +12,7 @@ impl Board {
     fn new(x: usize, y: usize, board_histories: usize) -> Self {
         Board {
             array: vec![vec![Cell::new(); x + 2]; y + 2],
-            old_hash: RingBuffer::new(board_histories, 0),
+            old_hash: RingBuffer::new(board_histories, None),
             width: x,
             height: y,
         }
@@ -44,7 +44,7 @@ impl Board {
     fn commit_state(&mut self) {
         // コミット前の盤面のハッシュを取得しておく
         // もし、この状態と、is_doneメソッドが呼ばれた時に算出したハッシュが同一であれば終了と判定する。
-        self.old_hash.enqueue(self.to_hash());
+        self.old_hash.enqueue(Some(self.to_hash()));
         self.array
             .iter_mut()
             .for_each(|row| row.into_iter().for_each(|cell| cell.commit_state()));
@@ -73,7 +73,7 @@ impl Board {
         println!("======================================");
     }
     fn is_done(&self) -> bool {
-        self.old_hash.contains(self.to_hash())
+        self.old_hash.contains(Some(self.to_hash()))
     }
 }
 
